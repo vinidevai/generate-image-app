@@ -11,9 +11,9 @@ export const CONFIG = {
   // Se ficar vazio, o app cai no MOCK em services/api.js.
   CLIENTS_ENDPOINT: 'https://webhooks.axlemarketingroup.online/webhook/br/clients',
 
-  // POST do n8n que recebe { client_id, prompt, reference_image_base64, action_type }
-  // e devolve { images: [{ url, format }] }. Enquanto vazio, os criativos são simulados.
-  WEBHOOK_URL: '',
+  // POST do n8n que recebe o pedido estruturado (ver services/api.js -> buildPayload)
+  // e devolve { images: [{ url, format }], copy }. Enquanto vazio, os criativos são simulados.
+  WEBHOOK_URL: 'https://webhooks.axlemarketingroup.online/webhook/app/image-generation/request',
 
   // Master switch: quando true, ignora os endpoints acima e simula TUDO localmente.
   // Com false, cada chamada usa o endpoint real se ele estiver preenchido;

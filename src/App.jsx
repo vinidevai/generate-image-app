@@ -4,7 +4,7 @@ import Sidebar from './components/Sidebar'
 import ChatArea from './components/ChatArea'
 import ChatInput from './components/ChatInput'
 import ThemeToggle from './components/ThemeToggle'
-import { fetchClients, requestCreatives } from './services/api'
+import { fetchClients, requestCreatives, buildPayload } from './services/api'
 
 let idSeq = 0
 const nextId = () => `m_${Date.now()}_${idSeq++}`
@@ -41,14 +41,27 @@ export default function App() {
   const [showSafeZones, setShowSafeZones] = useState(false)
   const [error, setError] = useState(null)
 
-  // Núcleo: monta o payload, dispara o POST e injeta a resposta no chat.
-  async function send({ prompt, reference_image_base64 = null, reference_image_url = null }) {
+  // Núcleo: monta o payload estruturado, dispara o POST e injeta a resposta.
+  async function send({
+    prompt,
+    target = 'all',
+    provided_copy = '',
+    reference_image_base64 = null,
+    reference_image_url = null, // preenchido só em alteração de um criativo específico
+  }) {
     if (!selectedClient || loading) return
     setError(null)
 
-    const isAlteration = !!reference_image_url
+    const payload = buildPayload({
+      clientId: selectedClient.id,
+      prompt,
+      target,
+      providedCopy: provided_copy,
+      referenceImageBase64: reference_image_base64,
+      targetImageUrl: reference_image_url,
+    })
 
-    // Eco do pedido do usuário no histórico.
+    // Eco do pedido do usuário no histórico (mostra os sinalizadores).
     setMessages((m) => [
       ...m,
       {
@@ -56,29 +69,16 @@ export default function App() {
         role: 'user',
         text: prompt,
         attachment: reference_image_base64 || reference_image_url,
-        isAlteration,
+        target: payload.target,
+        providedCopy: payload.provided_copy,
+        isAlteration: payload.request_type === 'alteration',
       },
     ])
 
-    // Payload exatamente como o n8n espera.
-    const payload = isAlteration
-      ? {
-          client_id: selectedClient.id,
-          prompt,
-          reference_image_url,
-          action_type: 'alteration',
-        }
-      : {
-          client_id: selectedClient.id,
-          prompt,
-          reference_image_base64,
-          action_type: 'new',
-        }
-
     setLoading(true)
     try {
-      const images = await requestCreatives(payload)
-      setMessages((m) => [...m, { id: nextId(), role: 'assistant', images }])
+      const { images, copy } = await requestCreatives(payload)
+      setMessages((m) => [...m, { id: nextId(), role: 'assistant', images, copy }])
     } catch (err) {
       setError(err.message || 'Falha ao falar com o webhook.')
     } finally {
