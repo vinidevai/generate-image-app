@@ -7,15 +7,16 @@
 // =============================================================
 
 export const CONFIG = {
-  // GET fictício que retorna a lista de clientes (id, nome, logo, referências).
-  // Enquanto estiver vazio ou indisponível, o app usa o MOCK em services/api.js.
-  CLIENTS_ENDPOINT: '',
+  // GET que retorna a lista de clientes. Resposta: [{ id, name }, ...].
+  // Se ficar vazio, o app cai no MOCK em services/api.js.
+  CLIENTS_ENDPOINT: 'https://webhooks.axlemarketingroup.online/webhook/br/clients',
 
   // POST do n8n que recebe { client_id, prompt, reference_image_base64, action_type }
-  // e devolve { images: [{ url, format }] }.
+  // e devolve { images: [{ url, format }] }. Enquanto vazio, os criativos são simulados.
   WEBHOOK_URL: '',
 
-  // Quando true, ignora os endpoints acima e simula tudo localmente
-  // (útil para testar o layout sem o n8n no ar).
-  USE_MOCK: true,
+  // Master switch: quando true, ignora os endpoints acima e simula TUDO localmente.
+  // Com false, cada chamada usa o endpoint real se ele estiver preenchido;
+  // caso contrário (ex.: WEBHOOK_URL vazio), continua simulando só aquela parte.
+  USE_MOCK: false,
 }

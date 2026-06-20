@@ -1,5 +1,16 @@
 import { Building2, ChevronDown, Image as ImageIcon, Layers, Loader2, ScanEye } from 'lucide-react'
 
+// Extrai iniciais do nome ignorando emojis/símbolos (ex.: "🚨  Iza Florentino" -> "IF").
+function getInitials(name = '') {
+  const parts = name
+    .replace(/[^\p{L}\p{N}\s]/gu, '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  if (!parts.length) return '?'
+  return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase()
+}
+
 // Sidebar esquerda: configurações do cliente + controles globais.
 export default function Sidebar({
   clients,
@@ -54,11 +65,17 @@ export default function Sidebar({
       {selectedClient && (
         <div className="animate-fade-in flex flex-col gap-4">
           <div className="flex flex-col items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60">
-            <img
-              src={selectedClient.logo}
-              alt={selectedClient.name}
-              className="h-20 w-20 rounded-full border-2 border-white object-cover shadow dark:border-slate-700"
-            />
+            {selectedClient.logo ? (
+              <img
+                src={selectedClient.logo}
+                alt={selectedClient.name}
+                className="h-20 w-20 rounded-full border-2 border-white object-cover shadow dark:border-slate-700"
+              />
+            ) : (
+              <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-white bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-2xl font-bold text-white shadow dark:border-slate-700">
+                {getInitials(selectedClient.name)}
+              </div>
+            )}
             <div className="text-center">
               <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
                 {selectedClient.name}
