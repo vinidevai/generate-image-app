@@ -136,7 +136,7 @@ function EmptyState() {
   )
 }
 
-export default function ChatArea({ messages, loading, showSafeZones, onRequestAlteration }) {
+export default function ChatArea({ messages, loading, loadingStatus, showSafeZones, onRequestAlteration }) {
   const endRef = useRef(null)
 
   useEffect(() => {
@@ -164,7 +164,7 @@ export default function ChatArea({ messages, loading, showSafeZones, onRequestAl
               />
             ),
           )}
-          {loading && <LoadingMessage />}
+          {loading && <LoadingMessage status={loadingStatus} />}
           <div ref={endRef} />
         </div>
       )}

@@ -38,6 +38,7 @@ export default function App() {
   // -------- Chat --------
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(false)
+  const [progress, setProgress] = useState('')
   const [showSafeZones, setShowSafeZones] = useState(false)
   const [error, setError] = useState(null)
 
@@ -76,13 +77,15 @@ export default function App() {
     ])
 
     setLoading(true)
+    setProgress('')
     try {
-      const { images, copy } = await requestCreatives(payload)
+      const { images, copy } = await requestCreatives(payload, setProgress)
       setMessages((m) => [...m, { id: nextId(), role: 'assistant', images, copy }])
     } catch (err) {
       setError(err.message || 'Falha ao falar com o webhook.')
     } finally {
       setLoading(false)
+      setProgress('')
     }
   }
 
@@ -122,8 +125,8 @@ export default function App() {
         <ChatArea
           messages={messages}
           loading={loading}
+          loadingStatus={progress}
           showSafeZones={showSafeZones}
-          hasClient={!!selectedClient}
           onRequestAlteration={send}
         />
 

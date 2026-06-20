@@ -60,9 +60,13 @@ export function buildPayload({
 
 // -------------------------------------------------------------
 //  POST webhook (n8n)  → criação / alteração de criativos
+//  Aceita 2 modos de resposta:
+//   - assíncrono: { job_id } → o app faz polling no STATUS_ENDPOINT
+//   - síncrono:   { images, copy } direto na resposta do POST
 //  Retorno normalizado: { images: [{ url, format }], copy }
+//  onProgress(texto) é opcional e atualiza a mensagem de loading.
 // -------------------------------------------------------------
-export async function requestCreatives(payload) {
+export async function requestCreatives(payload, onProgress) {
   if (CONFIG.USE_MOCK || !CONFIG.WEBHOOK_URL) {
     await sleep(3200) // simula o n8n loopando à espera dos predicts
     return mockGenerate(payload)
@@ -75,15 +79,66 @@ export async function requestCreatives(payload) {
   })
   if (!res.ok) throw new Error(`Webhook respondeu ${res.status}`)
 
-  // Tenta JSON; se vier texto puro, embrulha como copy.
-  let data
+  const start = await parseJson(res)
+
+  // Modo síncrono: o POST já trouxe o resultado completo.
+  const immediate = normalizeResponse(start)
+  if (immediate.images.length || immediate.copy) return immediate
+
+  // Modo assíncrono: precisa de job_id para consultar o status.
+  const jobId = start.job_id || start.jobId || start.id || start.executionId
+  if (!jobId) {
+    throw new Error(
+      'O webhook não retornou job_id nem imagens. Configure a resposta imediata para devolver { "job_id": "..." }.',
+    )
+  }
+  if (!CONFIG.STATUS_ENDPOINT) {
+    throw new Error('STATUS_ENDPOINT não configurado para o polling.')
+  }
+  return pollStatus(jobId, onProgress)
+}
+
+// Consulta o STATUS_ENDPOINT a cada POLL_INTERVAL_MS até concluir/falhar.
+async function pollStatus(jobId, onProgress) {
+  const started = Date.now()
+  const sep = CONFIG.STATUS_ENDPOINT.includes('?') ? '&' : '?'
+  const url = `${CONFIG.STATUS_ENDPOINT}${sep}job_id=${encodeURIComponent(jobId)}`
+
+  const DONE = ['done', 'completed', 'succeeded', 'success', 'ready']
+  const FAIL = ['error', 'failed', 'canceled', 'cancelled']
+
+  while (Date.now() - started < CONFIG.POLL_TIMEOUT_MS) {
+    await sleep(CONFIG.POLL_INTERVAL_MS)
+
+    let data
+    try {
+      const res = await fetch(url)
+      // 404 = job ainda não registrado; 5xx = falha transitória → tenta de novo.
+      if (res.status === 404 || res.status >= 500) continue
+      if (!res.ok) throw new Error(`Status respondeu ${res.status}`)
+      data = await parseJson(res)
+    } catch {
+      continue // tolera quedas de rede pontuais durante o loop
+    }
+
+    const status = String(data.status || '').toLowerCase()
+    if (DONE.includes(status)) return normalizeResponse(data)
+    if (FAIL.includes(status)) {
+      throw new Error(data.error || data.message || 'A geração falhou no n8n.')
+    }
+    onProgress?.(data.progress || data.message || 'Processando os criativos…')
+  }
+  throw new Error('Tempo esgotado aguardando o resultado da geração (10 min).')
+}
+
+// Lê a resposta como JSON; se vier texto puro, embrulha como { copy }.
+async function parseJson(res) {
   const raw = await res.text()
   try {
-    data = raw ? JSON.parse(raw) : {}
+    return raw ? JSON.parse(raw) : {}
   } catch {
-    data = { copy: raw }
+    return { copy: raw }
   }
-  return normalizeResponse(data)
 }
 
 // Normaliza qualquer formato de resposta para { images, copy }.

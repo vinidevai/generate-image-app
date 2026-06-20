@@ -13,7 +13,7 @@ const STEPS = [
   'Quase lá, finalizando os detalhes…',
 ]
 
-export default function LoadingMessage() {
+export default function LoadingMessage({ status }) {
   const [step, setStep] = useState(0)
 
   useEffect(() => {
@@ -22,6 +22,9 @@ export default function LoadingMessage() {
     }, 2800)
     return () => clearInterval(id)
   }, [])
+
+  // Se o polling reportou um progresso real, ele tem prioridade.
+  const line = status || STEPS[step]
 
   return (
     <div className="animate-fade-in flex items-start gap-3">
@@ -35,7 +38,7 @@ export default function LoadingMessage() {
           <span className="h-2 w-2 animate-bounce rounded-full bg-indigo-400" />
         </div>
         <p className="text-sm text-slate-500 transition-all dark:text-slate-400">
-          {STEPS[step]}
+          {line}
         </p>
 
         {/* Skeleton dos criativos que estão chegando */}

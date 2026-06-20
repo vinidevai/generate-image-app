@@ -21,17 +21,37 @@ Dashboard interno para agência de tráfego: **solicitar, visualizar e pedir alt
 
 ## 🔌 Contratos dos Webhooks
 
-**Criação** (`action_type: "new"`):
+### 1. POST de geração (`WEBHOOK_URL`)
+
+Payload estruturado — **todos os campos sempre presentes** para o n8n não precisar adivinhar:
+
 ```json
-{ "client_id": "cli_001", "prompt": "3 criativos de hambúrguer", "reference_image_base64": "data:image/...", "action_type": "new" }
+{
+  "client_id": "86b8bfyg0",
+  "request_type": "new",            // "new" | "alteration"
+  "target": "all",                  // "all" | "image_only" | "copy_only" | "specific_image"
+  "prompt": "Faça um hambúrguer duplo artesanal",
+  "provided_copy": "Sabor em dobro nesta sexta!",  // "" = n8n gera a copy
+  "target_image_url": "",           // só preenchido em alteração (target=specific_image)
+  "reference_image_base64": null    // anexo de referência (data URL) ou null
+}
 ```
 
-**Alteração** (`action_type: "alteration"`):
+**Resposta — dois modos aceitos:**
+- **Assíncrono (recomendado):** responde na hora com `{ "job_id": "abc-123" }`. O app faz polling.
+- **Síncrono:** responde direto com `{ "images": [...], "copy": "..." }`.
+
+### 2. GET de status (`STATUS_ENDPOINT`) — polling do modo assíncrono
+
+`GET STATUS_ENDPOINT?job_id=abc-123`, consultado a cada 15s:
+
 ```json
-{ "client_id": "cli_001", "prompt": "fundo mais escuro", "reference_image_url": "https://.../img.png", "action_type": "alteration" }
+{ "status": "processing", "progress": "2/3" }
+{ "status": "done", "images": [{ "url": "...", "format": "feed" }], "copy": "..." }
+{ "status": "error", "error": "mensagem" }
 ```
 
-**Retorno esperado:** `{ "images": [{ "url": "...", "format": "feed" | "story" }] }` (também aceita um array cru de URLs).
+`format`: `"feed"` (1080x1350) ou `"story"` (1080x1920). A normalização também aceita array cru de URLs.
 
 ## ⚙️ Configuração
 
