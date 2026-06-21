@@ -153,7 +153,12 @@ function normalizeResponse(data) {
   }
   if (data?.data) return normalizeResponse(data.data)
 
-  const rawImages = data.images || data.urls || []
+  // Aceita "output" do Replicate (string única ou array de URLs),
+  // além de "images"/"urls". Assim o Respond do n8n vira quase passthrough.
+  let rawImages = data.images || data.urls || data.output || []
+  if (typeof rawImages === 'string') rawImages = [rawImages]
+  if (!Array.isArray(rawImages)) rawImages = []
+
   return {
     images: rawImages.map(toImage).filter(Boolean),
     copy: data.copy || data.caption || data.text || '',
