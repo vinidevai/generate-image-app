@@ -32,6 +32,7 @@ export async function fetchClients() {
 //  Todos os campos vão SEMPRE presentes — preenchidos ou nulos —
 //  para o n8n nunca precisar adivinhar.
 //
+//  request_id:       UUID único por envio (trace + idempotência no n8n)
 //  client_id:        ID do cliente (dropdown)
 //  mode:             "all" | "image_only" | "copy_only" | "alteration"
 //  main_prompt:      texto da caixa principal
@@ -39,6 +40,13 @@ export async function fetchClients() {
 //  attachments:      array de data URLs base64 (referências); [] se nenhuma
 //  target_image_url: URL do criativo a iterar (só em mode="alteration", senão null)
 // =============================================================
+
+// UUID v4 (usa crypto nativo; fallback p/ contextos sem ele).
+function newRequestId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
+  return `req-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`
+}
+
 export function buildPayload({
   clientId,
   mode = 'all',
@@ -49,6 +57,7 @@ export function buildPayload({
 }) {
   const isAlteration = mode === 'alteration' || !!targetImageUrl
   return {
+    request_id: newRequestId(),
     client_id: clientId,
     mode: isAlteration ? 'alteration' : mode,
     main_prompt: mainPrompt,

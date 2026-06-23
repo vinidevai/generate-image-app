@@ -28,6 +28,7 @@ Aqui "copy" = o **texto de gancho impresso na arte** (não legenda de post).
 
 ```json
 {
+  "request_id": "5f3e...uuid",       // UUID único por envio (trace + dedup)
   "client_id": "86b8bfyg0",
   "mode": "all",                    // "all" | "image_only" | "copy_only" | "alteration"
   "main_prompt": "Hambúrguer duplo artesanal para o fim de semana",
