@@ -44,22 +44,22 @@ export default function App() {
 
   // Núcleo: monta o payload estruturado, dispara o POST e injeta a resposta.
   async function send({
-    prompt,
-    target = 'all',
-    provided_copy = '',
-    reference_image_base64 = null,
-    reference_image_url = null, // preenchido só em alteração de um criativo específico
+    mode = 'all',
+    main_prompt,
+    custom_copy = '',
+    attachments = [],
+    target_image_url = null, // preenchido só na alteração de um criativo específico
   }) {
     if (!selectedClient || loading) return
     setError(null)
 
     const payload = buildPayload({
       clientId: selectedClient.id,
-      prompt,
-      target,
-      providedCopy: provided_copy,
-      referenceImageBase64: reference_image_base64,
-      targetImageUrl: reference_image_url,
+      mode,
+      mainPrompt: main_prompt,
+      customCopy: custom_copy,
+      attachments,
+      targetImageUrl: target_image_url,
     })
 
     // Eco do pedido do usuário no histórico (mostra os sinalizadores).
@@ -68,11 +68,11 @@ export default function App() {
       {
         id: nextId(),
         role: 'user',
-        text: prompt,
-        attachment: reference_image_base64 || reference_image_url,
-        target: payload.target,
-        providedCopy: payload.provided_copy,
-        isAlteration: payload.request_type === 'alteration',
+        text: main_prompt,
+        attachments: target_image_url ? [target_image_url] : attachments,
+        mode: payload.mode,
+        customCopy: payload.custom_copy,
+        isAlteration: payload.mode === 'alteration',
       },
     ])
 

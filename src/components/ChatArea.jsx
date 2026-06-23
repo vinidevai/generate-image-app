@@ -3,14 +3,14 @@ import { Sparkles, User, Wand2, ImagePlus, Type, Copy, Check, MessageSquareText 
 import CreativeCard from './CreativeCard'
 import LoadingMessage from './LoadingMessage'
 
-const TARGET_LABELS = {
+const MODE_LABELS = {
   all: 'Imagem + Copy',
   image_only: 'Só Imagem',
   copy_only: 'Só Copy',
-  specific_image: 'Imagem específica',
+  alteration: 'Alteração',
 }
 
-// Bloco de copy/legenda com botão de copiar.
+// Bloco da copy (texto de gancho) com botão de copiar.
 function CopyBlock({ copy }) {
   const [copied, setCopied] = useState(false)
   function doCopy() {
@@ -22,7 +22,7 @@ function CopyBlock({ copy }) {
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900/50">
       <div className="mb-1.5 flex items-center justify-between">
         <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-          <Type size={12} /> Legenda
+          <Type size={12} /> Copy
         </span>
         <button
           onClick={doCopy}
@@ -43,31 +43,37 @@ function UserMessage({ message }) {
     <div className="animate-fade-in flex items-start justify-end gap-3">
       <div className="flex max-w-[80%] flex-col items-end gap-2">
         <div className="flex flex-wrap items-center justify-end gap-1.5">
-          {message.isAlteration && (
+          {message.isAlteration ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
               <Wand2 size={11} /> Alteração
             </span>
+          ) : (
+            message.mode && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                {MODE_LABELS[message.mode] || message.mode}
+              </span>
+            )
           )}
-          {message.target && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-              {TARGET_LABELS[message.target] || message.target}
-            </span>
-          )}
-          {message.providedCopy && (
+          {message.customCopy && (
             <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300">
-              <MessageSquareText size={11} /> Legenda fornecida
+              <MessageSquareText size={11} /> Copy fornecida
             </span>
           )}
         </div>
         <div className="rounded-2xl rounded-tr-sm bg-indigo-600 px-4 py-2.5 text-sm text-white shadow-sm">
           {message.text}
         </div>
-        {message.attachment && (
-          <img
-            src={message.attachment}
-            alt="Referência enviada"
-            className="max-h-40 rounded-xl border border-slate-200 object-cover dark:border-slate-700"
-          />
+        {message.attachments?.length > 0 && (
+          <div className="flex flex-wrap justify-end gap-2">
+            {message.attachments.map((src, i) => (
+              <img
+                key={i}
+                src={src}
+                alt={`Referência ${i + 1}`}
+                className="max-h-40 rounded-xl border border-slate-200 object-cover dark:border-slate-700"
+              />
+            ))}
+          </div>
         )}
       </div>
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-200">
@@ -77,16 +83,16 @@ function UserMessage({ message }) {
   )
 }
 
-// Bolha do assistente (criativos e/ou legenda gerados).
+// Bolha do assistente (criativos e/ou copy gerados).
 function AssistantMessage({ message, showSafeZones, onRequestAlteration, busy }) {
   const imgs = message.images || []
   const hasImages = imgs.length > 0
   const hasCopy = !!message.copy
 
   let intro = 'Prontinho! 👇'
-  if (hasImages && hasCopy) intro = `Gerei ${imgs.length} ${imgs.length === 1 ? 'criativo' : 'criativos'} e a legenda 👇`
+  if (hasImages && hasCopy) intro = `Gerei ${imgs.length} ${imgs.length === 1 ? 'criativo' : 'criativos'} e a copy 👇`
   else if (hasImages) intro = `Gerei ${imgs.length} ${imgs.length === 1 ? 'criativo' : 'criativos'} para você 👇`
-  else if (hasCopy) intro = 'Escrevi a legenda 👇'
+  else if (hasCopy) intro = 'Escrevi a copy 👇'
 
   return (
     <div className="animate-fade-in flex items-start gap-3">

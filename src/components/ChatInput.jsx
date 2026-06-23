@@ -20,69 +20,70 @@ function fileToBase64(file) {
   })
 }
 
-// O que o n8n deve gerar (vai no campo "target" do payload).
-const TARGETS = [
+// O que o n8n deve gerar (vai no campo "mode" do payload).
+const MODES = [
   { id: 'all', label: 'Imagem + Copy', icon: LayoutGrid },
   { id: 'image_only', label: 'Só Imagem', icon: ImageIcon },
   { id: 'copy_only', label: 'Só Copy', icon: Type },
 ]
 
-// Input principal: alvo + legenda opcional + texto + anexo.
+// Input principal: modo + copy pronta + prompt + anexos (referências).
 export default function ChatInput({ onSend, disabled, busy }) {
   const [text, setText] = useState('')
-  const [target, setTarget] = useState('all')
-  const [providedCopy, setProvidedCopy] = useState('')
+  const [mode, setMode] = useState('all')
+  const [customCopy, setCustomCopy] = useState('')
   const [showCopy, setShowCopy] = useState(false)
-  const [attachment, setAttachment] = useState(null) // { name, base64 }
+  const [attachments, setAttachments] = useState([]) // [{ name, base64 }]
   const fileRef = useRef(null)
   const taRef = useRef(null)
 
-  const copyOnly = target === 'copy_only'
+  const copyOnly = mode === 'copy_only'
 
   function autoGrow(el) {
     el.style.height = 'auto'
     el.style.height = Math.min(el.scrollHeight, 180) + 'px'
   }
 
-  async function handleFile(e) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (!file.type.startsWith('image/')) {
-      alert('Selecione um arquivo de imagem.')
-      return
-    }
-    const base64 = await fileToBase64(file)
-    setAttachment({ name: file.name, base64 })
-    e.target.value = ''
+  async function handleFiles(e) {
+    const files = Array.from(e.target.files || []).filter((f) => f.type.startsWith('image/'))
+    const loaded = await Promise.all(
+      files.map(async (f) => ({ name: f.name, base64: await fileToBase64(f) })),
+    )
+    setAttachments((prev) => [...prev, ...loaded])
+    e.target.value = '' // permite re-selecionar o mesmo arquivo
+  }
+
+  function removeAttachment(i) {
+    setAttachments((prev) => prev.filter((_, idx) => idx !== i))
   }
 
   function submit() {
     const prompt = text.trim()
     if (!prompt || disabled) return
     onSend({
-      prompt,
-      target,
-      provided_copy: providedCopy.trim(),
-      // Em "Só Copy" o anexo de imagem não faz sentido.
-      reference_image_base64: copyOnly ? null : attachment?.base64 || null,
+      mode,
+      main_prompt: prompt,
+      custom_copy: customCopy.trim(),
+      // Em "Só Copy" não faz sentido enviar referência de imagem.
+      attachments: copyOnly ? [] : attachments.map((a) => a.base64),
     })
     setText('')
-    setAttachment(null)
+    setAttachments([])
     if (taRef.current) taRef.current.style.height = 'auto'
   }
 
   return (
     <div className="border-t border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-      {/* Controles: o que gerar + legenda pronta */}
+      {/* Controles: o que gerar + copy pronta */}
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <div className="inline-flex rounded-lg border border-slate-200 bg-slate-100 p-0.5 dark:border-slate-700 dark:bg-slate-800">
-          {TARGETS.map((t) => {
+          {MODES.map((t) => {
             const Icon = t.icon
-            const active = target === t.id
+            const active = mode === t.id
             return (
               <button
                 key={t.id}
-                onClick={() => setTarget(t.id)}
+                onClick={() => setMode(t.id)}
                 disabled={disabled}
                 className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition ${
                   active
@@ -101,55 +102,69 @@ export default function ChatInput({ onSend, disabled, busy }) {
           onClick={() => setShowCopy((v) => !v)}
           disabled={disabled}
           className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition disabled:opacity-40 ${
-            showCopy || providedCopy
+            showCopy || customCopy
               ? 'border-indigo-300 bg-indigo-50 text-indigo-600 dark:border-indigo-500/40 dark:bg-indigo-500/10 dark:text-indigo-300'
               : 'border-slate-200 text-slate-500 hover:text-slate-700 dark:border-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
           }`}
         >
           <MessageSquareText size={13} />
-          {providedCopy ? 'Legenda anexada' : 'Tenho a legenda'}
+          {customCopy ? 'Copy anexada' : 'Tenho a Copy'}
         </button>
       </div>
 
-      {/* Campo de legenda pronta (provided_copy) */}
+      {/* Campo de copy pronta (custom_copy = o gancho impresso na arte) */}
       {showCopy && (
         <div className="animate-fade-in mb-2">
           <textarea
             rows={2}
-            value={providedCopy}
-            onChange={(e) => setProvidedCopy(e.target.value)}
-            placeholder="Cole aqui sua legenda/copy. Se deixar vazio, a IA gera para você."
+            value={customCopy}
+            onChange={(e) => setCustomCopy(e.target.value)}
+            placeholder="Cole aqui a copy — o texto de gancho que vai impresso na arte. Vazio = a IA cria."
             className="w-full resize-none rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-indigo-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
           />
         </div>
       )}
 
-      {/* Preview do anexo */}
-      {attachment && !copyOnly && (
-        <div className="animate-fade-in mb-2 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 py-1 pl-1 pr-2 dark:border-slate-700 dark:bg-slate-800">
-          <img src={attachment.base64} alt={attachment.name} className="h-9 w-9 rounded object-cover" />
-          <span className="max-w-[160px] truncate text-xs text-slate-600 dark:text-slate-300">
-            {attachment.name}
-          </span>
-          <button onClick={() => setAttachment(null)} className="text-slate-400 hover:text-rose-500">
-            <X size={15} />
-          </button>
+      {/* Previews dos anexos */}
+      {!copyOnly && attachments.length > 0 && (
+        <div className="animate-fade-in mb-2 flex flex-wrap gap-2">
+          {attachments.map((a, i) => (
+            <div
+              key={i}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 py-1 pl-1 pr-2 dark:border-slate-700 dark:bg-slate-800"
+            >
+              <img src={a.base64} alt={a.name} className="h-9 w-9 rounded object-cover" />
+              <span className="max-w-[140px] truncate text-xs text-slate-600 dark:text-slate-300">
+                {a.name}
+              </span>
+              <button onClick={() => removeAttachment(i)} className="text-slate-400 hover:text-rose-500">
+                <X size={15} />
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
       <div className="flex items-end gap-2 rounded-2xl border border-slate-300 bg-slate-50 p-2 transition focus-within:border-indigo-400 dark:border-slate-700 dark:bg-slate-800">
-        {/* Anexar referência (oculto em "Só Copy") */}
+        {/* Anexar referências (oculto em "Só Copy") */}
         {!copyOnly && (
           <>
             <button
               onClick={() => fileRef.current?.click()}
               disabled={disabled}
-              title="Anexar imagem de referência"
+              title="Anexar imagem(ns) de referência"
               className="shrink-0 rounded-lg p-2 text-slate-500 transition hover:bg-slate-200 hover:text-indigo-600 disabled:opacity-40 dark:hover:bg-slate-700"
             >
               <Paperclip size={19} />
             </button>
-            <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleFiles}
+              className="hidden"
+            />
           </>
         )}
 
@@ -173,7 +188,7 @@ export default function ChatInput({ onSend, disabled, busy }) {
             disabled
               ? 'Selecione um cliente para começar…'
               : copyOnly
-                ? 'Ex: escreva uma legenda para o combo de sexta-feira'
+                ? 'Ex: crie o gancho para o combo de sexta-feira'
                 : 'Ex: preciso de 3 criativos de hambúrguer para o final de semana'
           }
           className="max-h-[180px] flex-1 resize-none bg-transparent py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 disabled:cursor-not-allowed dark:text-slate-100"

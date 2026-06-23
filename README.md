@@ -23,19 +23,27 @@ Dashboard interno para agência de tráfego: **solicitar, visualizar e pedir alt
 
 ### 1. POST de geração (`WEBHOOK_URL`)
 
-Payload estruturado — **todos os campos sempre presentes** para o n8n não precisar adivinhar:
+Payload estruturado — **todos os campos sempre presentes** para o n8n não precisar adivinhar.
+Aqui "copy" = o **texto de gancho impresso na arte** (não legenda de post).
 
 ```json
 {
   "client_id": "86b8bfyg0",
-  "request_type": "new",            // "new" | "alteration"
-  "target": "all",                  // "all" | "image_only" | "copy_only" | "specific_image"
-  "prompt": "Faça um hambúrguer duplo artesanal",
-  "provided_copy": "Sabor em dobro nesta sexta!",  // "" = n8n gera a copy
-  "target_image_url": "",           // só preenchido em alteração (target=specific_image)
-  "reference_image_base64": null    // anexo de referência (data URL) ou null
+  "mode": "all",                    // "all" | "image_only" | "copy_only" | "alteration"
+  "main_prompt": "Hambúrguer duplo artesanal para o fim de semana",
+  "custom_copy": "Sabor em dobro nesta sexta!",  // null = a IA cria o gancho
+  "attachments": ["data:image/png;base64,..."],  // referências; [] se nenhuma
+  "target_image_url": null          // URL do criativo a iterar; só em mode="alteration"
 }
 ```
+
+| Campo | Quando preenche |
+|---|---|
+| `mode` | aba ativa (`all`/`image_only`/`copy_only`) ou `alteration` no botão "Pedir alteração" |
+| `main_prompt` | sempre — texto da caixa principal |
+| `custom_copy` | copy pronta do usuário, ou `null` p/ a IA gerar |
+| `attachments` | data URLs base64 das referências; `[]` se nenhuma (vazio em `copy_only`) |
+| `target_image_url` | só em `alteration` (a imagem que será iterada); `null` no resto |
 
 **Resposta — dois modos aceitos:**
 - **Assíncrono (recomendado):** responde na hora com `{ "job_id": "abc-123" }`. O app faz polling.

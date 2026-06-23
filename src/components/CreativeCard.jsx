@@ -14,7 +14,7 @@ export default function CreativeCard({ image, showSafeZones, onRequestAlteration
   function submitAlteration() {
     const prompt = text.trim()
     if (!prompt) return
-    onRequestAlteration({ prompt, reference_image_url: image.url })
+    onRequestAlteration({ mode: 'alteration', main_prompt: prompt, target_image_url: image.url })
     setText('')
     setEditing(false)
   }

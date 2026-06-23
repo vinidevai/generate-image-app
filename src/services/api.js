@@ -28,33 +28,33 @@ export async function fetchClients() {
 }
 
 // =============================================================
-//  PAYLOAD ESTRUTURADO
-//  Todos os campos vão SEMPRE presentes para o n8n não precisar
-//  adivinhar nada (sinalizadores claros).
+//  PAYLOAD ESTRUTURADO (contrato do POST)
+//  Todos os campos vão SEMPRE presentes — preenchidos ou nulos —
+//  para o n8n nunca precisar adivinhar.
 //
-//  request_type: "new" | "alteration"
-//  target:       "all" | "image_only" | "copy_only" | "specific_image"
-//  provided_copy: legenda fornecida pelo usuário ("" = n8n gera)
-//  target_image_url: só preenchido em "specific_image" (alteração)
-//  reference_image_base64: anexo de referência ("new"), null se não houver
+//  client_id:        ID do cliente (dropdown)
+//  mode:             "all" | "image_only" | "copy_only" | "alteration"
+//  main_prompt:      texto da caixa principal
+//  custom_copy:      copy/gancho pronto do usuário (null = IA gera)
+//  attachments:      array de data URLs base64 (referências); [] se nenhuma
+//  target_image_url: URL do criativo a iterar (só em mode="alteration", senão null)
 // =============================================================
 export function buildPayload({
   clientId,
-  prompt,
-  target = 'all',
-  providedCopy = '',
-  referenceImageBase64 = null,
-  targetImageUrl = '',
+  mode = 'all',
+  mainPrompt,
+  customCopy = '',
+  attachments = [],
+  targetImageUrl = null,
 }) {
-  const isAlteration = !!targetImageUrl
+  const isAlteration = mode === 'alteration' || !!targetImageUrl
   return {
     client_id: clientId,
-    request_type: isAlteration ? 'alteration' : 'new',
-    target: isAlteration ? 'specific_image' : target,
-    prompt,
-    provided_copy: providedCopy || '',
-    target_image_url: targetImageUrl || '',
-    reference_image_base64: referenceImageBase64 || null,
+    mode: isAlteration ? 'alteration' : mode,
+    main_prompt: mainPrompt,
+    custom_copy: customCopy ? customCopy : null,
+    attachments: Array.isArray(attachments) ? attachments : [],
+    target_image_url: isAlteration ? targetImageUrl || null : null,
   }
 }
 
@@ -182,12 +182,12 @@ function guessFormat(url = '') {
 // -------------------------------------------------------------
 function mockGenerate(payload) {
   const stamp = Date.now() % 1000
-  const copy = `Sabor em dobro nesta sexta! 🍔🔥 #${payload.client_id}`
+  const hook = `SABOR EM DOBRO\nNESTA SEXTA 🍔🔥`
 
-  if (payload.target === 'copy_only') {
-    return { images: [], copy: payload.provided_copy || copy }
+  if (payload.mode === 'copy_only') {
+    return { images: [], copy: payload.custom_copy || hook }
   }
-  if (payload.target === 'specific_image') {
+  if (payload.mode === 'alteration') {
     return {
       images: [
         { url: `https://placehold.co/1080x1350/0f172a/38bdf8?text=Ajuste+v2%0A${stamp}`, format: 'feed' },
@@ -202,6 +202,6 @@ function mockGenerate(payload) {
     { url: `https://placehold.co/1080x1920/172554/dbeafe?text=Story+9:16%0A${stamp + 2}`, format: 'story' },
   ]
 
-  if (payload.target === 'image_only') return { images, copy: '' }
-  return { images, copy: payload.provided_copy || copy } // "all"
+  if (payload.mode === 'image_only') return { images, copy: '' }
+  return { images, copy: payload.custom_copy || hook } // "all"
 }
